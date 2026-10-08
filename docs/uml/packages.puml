@@ -1,0 +1,124 @@
+@startuml packages
+!pragma layout smetana
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+hide empty members
+title Aquascape : vue d'ensemble des packages
+
+package "(racine)" as root {
+    class Main
+}
+
+package screen {
+    class Game
+    class GamePanel
+    class MenuPanel
+    class MapPanel
+    class ControlsPanel
+    class ControlsEditor
+    class Popup
+    class Camera
+}
+
+package save {
+    class SaveData
+    class Controls
+    enum WindowSize
+}
+
+package zone {
+    class Levels
+    class HubZone
+    class LightZone
+    class SplitZone
+    class "DashZone, ShootZone,\nParyZone, FinZone" as OtherZones
+    class DashTraining
+}
+
+package input {
+    abstract class Gamepad
+    interface GamepadListener
+    enum GamepadButton
+}
+
+package "Jamepad (SDL)" as jamepad <<bibliothèque>> {
+    class ControllerManager
+}
+
+package audio {
+    abstract class Music
+    enum Track
+}
+
+package "MP3SPI (JLayer, Tritonus)" as mp3 <<bibliothèque>> {
+    class MpegAudioFileReader
+}
+
+package world {
+    class World
+    class Progress
+    class Tunnel
+    class Plan
+    class Zone
+}
+
+package enemy {
+    abstract class Enemy
+    interface Arena
+    interface Obstacle
+}
+
+package "enemy.ability" as ability {
+    enum Ability
+    class Dash
+    class Shoot
+    class Shot
+    interface Target
+}
+
+package fluid {
+    class Droplet
+    class FluidRenderer
+}
+
+root ..> screen
+screen ..> zone
+screen ..> save
+screen ..> world
+screen ..> fluid
+screen ..> input
+screen ..> audio
+audio ..> mp3
+input ..> jamepad
+save ..> world
+save ..> input
+zone ..> world
+world ..> enemy
+world ..> fluid
+world ..> ability
+screen ..> ability
+ability ..> enemy
+ability ..> fluid
+
+note bottom of enemy
+  Ne dépend de rien : le monde lui est
+  présenté par les interfaces Arena et
+  Obstacle (inversion des dépendances).
+end note
+
+note bottom of audio
+  Ne dépend d'aucun autre package du jeu :
+  une piste reconnaît sa zone par son nom.
+end note
+
+note right of zone
+  Une classe par plan dessiné ;
+  Levels les assemble en niveaux.
+end note
+
+note top of screen
+  Les dépendances vont toutes dans le même sens :
+  aucun cycle entre les packages.
+end note
+@enduml

@@ -1,0 +1,153 @@
+@startuml abilities
+!pragma layout smetana
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+title Les compétences de la bulle : Dash, Slide et Shoot
+
+package "enemy.ability" as ability {
+    enum Ability {
+        DASH
+        SLIDE
+        SHOOT
+        +label() : String
+        +light() : String
+        +description() : List<String>
+        +{static} unlockedBy(light) : Ability
+    }
+
+    class Dash {
+        -armed : boolean
+        +hold(drop, keyHeld, allowed)
+        +cancel(drop)
+        +tear(drop) : List<Droplet>
+    }
+
+    class Slide {
+        +{static} MIN_SPEED : double
+        -wasHeld : boolean
+        +hold(drop, keyHeld, allowed)
+        +waitForRelease()
+    }
+
+    class Shoot {
+        +{static} CHARGE_TIME : double
+        -charging : boolean
+        -heldTime : double
+        -aimX : double
+        -aimY : double
+        +hold(drop, keyHeld, dirX, dirY, allowed) : Shot
+        +turn(direction, dt)
+        +charge(dt) : boolean
+        +cancel()
+        +power() : double
+        +draw(g, drop)
+    }
+
+    class Shot {
+        +{static} RADIUS : double
+        -x : double
+        -y : double
+        -vx : double
+        -vy : double
+        +update(dt, arena, targets)
+        +isAlive() : boolean
+        +draw(g)
+    }
+
+    interface Target {
+        +isUnder(x, y, radius) : boolean
+        +strike()
+    }
+}
+
+package enemy {
+    interface Arena {
+        +obstaclesNear(x, y, reach)
+        +enemies()
+    }
+}
+
+package fluid {
+    class Droplet {
+        +anchor()
+        +release()
+        +tear() : List<Droplet>
+        +slide()
+        +stopSliding()
+        +isSliding() : boolean
+    }
+}
+
+package world {
+    class World {
+        +holdDash(held)
+        +holdSlide(held)
+        +holdShot(held, aimX, aimY)
+        +turnAim(direction, dt)
+        +update(dt, dx, dy)
+    }
+    class Progress {
+        +hasAbility(ability) : boolean
+    }
+    class DoorButton
+}
+
+package screen {
+    class GamePanel
+}
+
+World *-- Dash
+World *-- Slide
+World *-- Shoot
+World *-- "*" Shot
+Shoot ..> Shot : tire
+Shot ..> Arena : murs et ennemis
+Shot ..> Target : frappe
+Target <|.. DoorButton
+Arena <|.. World
+Dash ..> Droplet
+Slide ..> Droplet
+Shoot ..> Droplet
+Progress ..> Ability
+GamePanel ..> World : touches maintenues, visée
+GamePanel ..> Ability : pop-up d'apprentissage
+
+note top of Ability
+  Posséder la lumière d'une zone,
+  c'est posséder la compétence :
+  Split donne le Dash, Dash donne le
+  Slide, Shoot donne le Shoot.
+  Rien de plus à sauvegarder.
+end note
+
+note bottom of Slide
+  Un appui : la goutte garde sa vitesse
+  et sa direction, sans touche maintenue
+  et quoi qu'on dirige ; un second appui
+  rend la main. Seul un nouvel appui
+  compte : la touche est lue à chaque image.
+end note
+
+note bottom of Dash
+  Touche maintenue : l'arrière de la
+  goutte se fige et la tête se tend ;
+  relâchée : la goutte est projetée ;
+  trop tendue : elle se déchire en deux.
+end note
+
+note left of Shoot
+  Touche maintenue : la puissance monte
+  avec le temps ; relâchée : une balle
+  part vers la visée. Au-delà de
+  CHARGE_TIME, la goutte explose.
+  La visée vient du stick droit, ou
+  tourne cran par cran avec deux touches.
+end note
+
+note bottom of Target
+  <b>Inversion des dépendances</b> : la balle
+  ne connaît ni le monde ni ses boutons,
+  seulement Arena et Target, comme les
+  ennemis ne connaissent qu'Arena.
+end note
+@enduml

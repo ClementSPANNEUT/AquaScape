@@ -1,0 +1,131 @@
+@startuml audio
+!pragma layout smetana
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+title La musique : Template Method et Null Object
+
+package audio {
+    abstract class Music {
+        -asked : Track
+        -playing : Track
+        +{static} open() : Music
+        +{static} none() : Music
+        +play(track)
+        +stop()
+        +playing() : Track
+        +setVolume(volume)
+        +volume() : double
+        #{abstract} has(track) : boolean
+        #{abstract} start(track)
+        #{abstract} silence()
+        #{abstract} volumeChanged(volume)
+    }
+
+    class Mp3Music {
+        -folder : Path
+        -player : Thread
+        -gain : double
+        #has(track) : boolean
+        #start(track)
+        #silence()
+        #volumeChanged(volume)
+        ~{static} scale(samples, length, gain)
+        -loop(file)
+        -playThrough(file) : boolean
+    }
+
+    class "Music.none()" as NoMusic <<anonyme>> {
+        #has(track) : false
+    }
+
+    enum Track {
+        MENU
+        HUB
+        SPLIT, DASH, SHOOT, PARY, LIGHT
+        END
+        TRAINING
+        +file() : String
+        +zone() : String
+        +{static} ofZone(zone) : Track
+    }
+}
+
+package screen {
+    class Game {
+        +music() : Music
+        +setVolume(percent)
+        -show(card, screen)
+    }
+    class GamePanel {
+        ~update()
+    }
+}
+
+package world {
+    class World {
+        +planAt(x, y) : Plan
+    }
+    class Plan {
+        +name() : String
+    }
+}
+
+package "javax.sound.sampled" as sound <<JDK>> {
+    class AudioSystem
+    interface SourceDataLine
+}
+
+package "MP3SPI, JLayer, Tritonus" as mp3 <<bibliothèque>> {
+    class MpegAudioFileReader
+}
+
+Music <|-- Mp3Music
+Music <|-- NoMusic
+Music ..> Track
+Mp3Music ..> AudioSystem : décode
+Mp3Music ..> SourceDataLine : envoie le son
+AudioSystem ..> MpegAudioFileReader : lit le MP3
+Game *-- Music
+Game ..> Track : MENU hors du jeu
+GamePanel ..> Music : play() à chaque image
+GamePanel ..> Track : ofZone()
+GamePanel ..> World
+World ..> Plan
+
+note right of Music
+  <b>Template Method</b> : play() choisit la piste.
+  La même ne redémarre pas, et un fichier absent
+  laisse la place à la musique du hub. Les
+  sous-classes ne font que démarrer et couper.
+end note
+
+note bottom of NoMusic
+  <b>Null Object</b> : dans les tests, le jeu
+  reçoit cette musique muette et n'a
+  jamais à vérifier s'il y a du son.
+end note
+
+note bottom of Mp3Music
+  Un fil à part décode le fichier et l'envoie
+  à la carte son par petits morceaux, en boucle :
+  la boucle de jeu n'attend jamais. Le volume
+  multiplie les échantillons juste avant l'envoi,
+  donc il change pendant que la piste joue.
+  Sans la bibliothèque ou sans carte son,
+  le jeu continue en silence.
+end note
+
+note bottom of Track
+  Une piste par zone, nommée comme son plan.
+  Level1 = Split, puis dans le sens des aiguilles
+  d'une montre : Dash, Shoot, Pary, Lumière.
+  Level3.mp3 n'existe pas encore : la musique
+  du hub continue dans la zone Shoot.
+end note
+
+note top of Game
+  La musique vit dans Game et non dans World,
+  qui est reconstruit à chaque mort : elle
+  continue quand la goutte revient au checkpoint.
+end note
+@enduml

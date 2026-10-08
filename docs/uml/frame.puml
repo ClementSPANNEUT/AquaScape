@@ -1,0 +1,56 @@
+@startuml frame
+skinparam shadowing false
+skinparam sequenceMessageAlign left
+title Une image du jeu (Game Loop et Update Method)
+
+participant "Timer\n(Swing, ~60 Hz)" as Timer
+participant GamePanel
+participant Controls
+participant Gamepad
+participant World
+participant Droplet
+participant "Enemy\n(Bouncer, Speeder…)" as Enemy
+participant "World\n(en tant qu'Arena)" as Arena
+participant Progress
+participant Game
+
+Timer -> GamePanel : actionPerformed
+activate GamePanel
+GamePanel -> Controls : isPressed(UP, DOWN, LEFT, RIGHT)
+GamePanel -> Gamepad : directionX(), directionY()
+GamePanel -> World : holdDash(touche du dash maintenue ?)
+activate World
+World -> Droplet : anchor() ou release()
+deactivate World
+GamePanel -> Gamepad : aimX(), aimY()
+GamePanel -> World : holdShot(touche de tir maintenue ?, visée)
+GamePanel -> World : update(dt, dx, dy)
+activate World
+loop chaque goutte
+    World -> Droplet : update(dt, poussée)
+end
+opt la goutte du joueur est trop tendue
+    World -> Droplet : tear() : deux moitiés
+end
+loop chaque ennemi proche du joueur
+    World -> Enemy : update(dt, this)
+    activate Enemy
+    Enemy -> Arena : obstaclesNear(x, y, portée)
+    Enemy -> Enemy : move() puis rebonds
+    deactivate Enemy
+end
+World -> World : touchDangers()\nmurs, ennemis, portes fermées
+World -> World : fragmentations et fusions
+World -> World : boutons et portes
+World -> Progress : touchCheckpoint() / obtainLight()
+deactivate World
+GamePanel -> Progress : takeChanged()
+alt la progression a changé
+    GamePanel -> Game : saveProgress(level, progress)
+end
+alt mort ou lumière récupérée
+    GamePanel -> GamePanel : load() : nouveau World,\nmême Progress
+end
+GamePanel -> GamePanel : repaint()\nWorld.draw(), HUD, pop-up
+deactivate GamePanel
+@enduml

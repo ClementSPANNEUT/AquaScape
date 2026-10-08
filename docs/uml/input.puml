@@ -1,0 +1,132 @@
+@startuml input
+!pragma layout smetana
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+title La manette : Template Method, Observer, Mediator et Null Object
+
+package input {
+    abstract class Gamepad {
+        -held : Set<GamepadButton>
+        +{static} open() : Gamepad
+        +{static} none() : Gamepad
+        +poll()
+        #{abstract} read() : Set<GamepadButton>
+        +{abstract} isConnected() : boolean
+        +{abstract} name() : String
+        +directionX() : int
+        +directionY() : int
+        +aimX() : double
+        +aimY() : double
+        +buttonName(button) : String
+        +addListener(listener)
+    }
+
+    class SdlGamepad {
+        -direction : GamepadButton
+        #read() : Set<GamepadButton>
+        +directionX() : int
+        +directionY() : int
+        ~{static} dominant(held, x, y) : GamepadButton
+    }
+
+    class "Gamepad.none()" as NoGamepad <<anonyme>> {
+        #read() : ensemble vide
+    }
+
+    interface GamepadListener {
+        +pressed(button)
+        +released(button)
+    }
+
+    enum GamepadButton {
+        UP, DOWN, LEFT, RIGHT
+        A, B, X, Y
+        LB, RB, LT, RT, L3, R3
+        START, BACK
+        +isDirection() : boolean
+        +label(playStation) : String
+    }
+}
+
+package screen {
+    class Game {
+        -current : JComponent
+        +gamepad() : Gamepad
+        -toScreen(button)
+    }
+    class MenuPanel
+    class MapPanel
+    class ControlsPanel
+    class GamePanel {
+        +pressed(button)
+        -playButton(button)
+        -pageButton(button)
+    }
+    class ControlsEditor {
+        +gamepadPressed(button)
+    }
+}
+
+package save {
+    class Controls {
+        +button(action) : GamepadButton
+        +setButton(action, button) : Action
+        +matches(action, button) : boolean
+    }
+}
+
+package "Jamepad (SDL)" as jamepad <<bibliothèque>> {
+    class ControllerManager
+}
+
+Gamepad <|-- SdlGamepad
+Gamepad <|-- NoGamepad
+Gamepad o-- "*" GamepadListener : prévient
+Gamepad ..> GamepadButton
+SdlGamepad --> ControllerManager
+Game *-- Gamepad
+Game ..> GamepadListener : écran affiché
+GamepadListener <|.. MenuPanel
+GamepadListener <|.. MapPanel
+GamepadListener <|.. ControlsPanel
+GamepadListener <|.. GamePanel
+GamePanel *-- ControlsEditor
+ControlsPanel *-- ControlsEditor
+ControlsEditor --> Controls : setButton()
+GamePanel ..> Controls : matches()
+Controls ..> GamepadButton
+
+note right of Gamepad
+  <b>Template Method</b> : poll() compare les
+  boutons lus par read() à ceux du tour
+  précédent. <b>Observer</b> : il prévient les
+  écouteurs des appuis et des relâchés.
+end note
+
+note bottom of NoGamepad
+  <b>Null Object</b> : sans manette (bibliothèque
+  absente, pas de manette, tests), le jeu
+  utilise celle-ci et n'a jamais à vérifier.
+end note
+
+note bottom of SdlGamepad
+  Le stick bouge la goutte dans huit directions
+  (directionX, directionY), mais les menus ne
+  reçoivent qu'une direction à la fois, la plus
+  poussée : descendre un peu de travers ne fait
+  jamais « gauche » ou « droite ».
+end note
+
+note top of Game
+  <b>Mediator</b> : Game est le seul écouteur de
+  la manette et passe chaque bouton à l'écran
+  affiché. Chaque écran décide de ce qu'il en
+  fait ; aucun bouton n'est déguisé en touche.
+end note
+
+note bottom of Controls
+  Un bouton par action, choisi dans l'écran
+  Contrôles et sauvegardé. Le stick et les
+  flèches bougent toujours ; Start reste la pause.
+end note
+@enduml

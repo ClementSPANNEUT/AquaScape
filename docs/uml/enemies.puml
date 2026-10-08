@@ -1,0 +1,105 @@
+@startuml enemies
+!pragma layout smetana
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+title Les ennemis : Template Method et inversion des dépendances
+
+package enemy {
+    interface Arena {
+        +width() : int
+        +height() : int
+        +obstaclesNear(x, y, reach) : List<Obstacle>
+        +barriersNear(x, y, reach) : List<Obstacle>
+        +enemies() : List<Enemy>
+    }
+
+    interface Obstacle {
+        +closestPoint(x, y) : Point2D
+        +halfThickness() : double
+        +touches(x, y, radius) : boolean
+    }
+
+    abstract class Enemy {
+        #x : double
+        #y : double
+        #vx : double
+        #vy : double
+        -radius : double
+        +{abstract} update(dt, arena : Arena)
+        +{abstract} draw(g, time)
+        +touches(x, y, radius) : boolean
+        +isVisibleIn(view) : boolean
+        #move(dt, arena : Arena)
+        #stopsAtBarriers() : boolean
+        #reflect(normalX, normalY)
+        #drawNeon(g, shape, width)
+    }
+
+    class Bouncer {
+        +update(dt, arena)
+        #stopsAtBarriers() : boolean
+        +draw(g, time)
+    }
+
+    class Speeder {
+        -stops : 2 points
+        -waitLeft : double
+        +update(dt, arena)
+        +touches(x, y, radius) : boolean
+        +draw(g, time)
+    }
+
+    class Spinner {
+        -angle : double
+        -speed : double
+        +update(dt, arena)
+        +touches(x, y, radius) : boolean
+        +draw(g, time)
+    }
+
+    class Gater {
+        -clock : double
+        +update(dt, arena)
+        +touches(x, y, radius) : boolean
+        +draw(g, time)
+    }
+}
+
+package world {
+    class World
+    class Wall
+}
+
+Enemy <|-- Bouncer
+Enemy <|-- Speeder
+Enemy <|-- Spinner
+Enemy <|-- Gater
+Enemy ..> Arena : se déplace dans
+Arena ..> Obstacle
+World ..|> Arena
+Wall ..|> Obstacle
+World "1" *-- "*" Enemy
+
+note right of Enemy
+  <b>Template Method</b>
+  move() est l'algorithme commun :
+  sous-pas, rebonds sur les bords et
+  les obstacles. Il appelle le crochet
+  stopsAtBarriers(), que Bouncer
+  redéfinit pour respecter les barrières.
+end note
+
+note bottom of Gater
+  <b>Polymorphisme</b>
+  World appelle update(), draw() et
+  touches() sans connaître le type exact.
+  Chaque ennemi a sa forme de collision.
+end note
+
+note left of Arena
+  <b>Inversion des dépendances</b>
+  Le package enemy ne connaît que
+  ces deux interfaces ; World et Wall
+  les implémentent.
+end note
+@enduml

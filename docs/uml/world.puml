@@ -1,0 +1,232 @@
+@startuml world
+!pragma layout smetana
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+title Le monde et sa construction
+
+package zone {
+    class Levels {
+        +{static} WORLD : int
+        +{static} TEST : int
+        +{static} TRAINING : int
+        +{static} get(index) : Level
+        -{static} worldTunnel() : Tunnel
+    }
+    class HubZone {
+        +{static} PLAN : Plan
+        +{static} carve(tunnel)
+        +{static} layOut(world)
+    }
+    class DashTraining {
+        +{static} PLAN : Plan
+        +{static} EXIT : String
+        +{static} carve(tunnel)
+        +{static} layOut(world)
+    }
+    class "SplitZone, DashZone, ..." as Zones {
+        +{static} PLAN : Plan
+        +{static} carve(tunnel)
+        +{static} layOut(world)
+    }
+}
+
+package world {
+    class Level <<record>> {
+        name : String
+        objective : String
+        width : int
+        height : int
+        layout : Consumer<World>
+    }
+
+    class World {
+        +World(level, progress)
+        +update(dt, dx, dy)
+        +draw(g, view)
+        +obstaclesNear(x, y, reach) : List<Wall>
+        +takeNewLight() : String
+        +isComplete() : boolean
+        +planAt(x, y) : Plan
+        +holdDash(held)
+        +holdSlide(held)
+        +switchDrop() : boolean
+        +holdShot(held, aimX, aimY)
+        +shots() : List<Shot>
+    }
+
+    class Progress {
+        -reachedCheckpoints : Set<Integer>
+        -lights : Set<String>
+        -lockedDoors : Set<Integer>
+        -checkpoint : int
+        -hits : int
+        +touchCheckpoint(index)
+        +obtainLight(name)
+        +lock(door)
+        +hasAbility(ability) : boolean
+        +takeChanged() : boolean
+    }
+
+    class Tunnel {
+        +corridor(width, points...)
+        +chamber(x, y, radius)
+        +contains(x, y) : boolean
+        +edges() : List<Wall>
+        +collectEdges(x, y, reach, into)
+        +draw(g, view)
+    }
+
+    class WallGrid {
+        +add(wall)
+        +collect(x, y, reach, into)
+    }
+
+    class TileCache {
+        +draw(g, view)
+        +clear()
+    }
+
+    class Wall
+    class Checkpoint
+    class Light
+    class Door
+    class DoorButton
+    class Goal
+
+    class Plan {
+        +name() : String
+        +x(planX, planY) : double
+        +y(planX, planY) : double
+        +planX(worldX, worldY) : double
+        +planY(worldX, worldY) : double
+        +length(planLength) : double
+        +covers(worldX, worldY) : boolean
+        +corridor(tunnel, width, plan...)
+    }
+
+    class Zone {
+        +checkpoint(x, y) : int
+        +light(name, x, y)
+        +bouncer(x, y, dx, dy)
+        +speeder(x1, y1, x2, y2)
+        +door(x1, y1, x2, y2) : int
+        +lockButton(door, x, y)
+    }
+}
+
+package fluid {
+    class Droplet {
+        +update(dt, thrustX, thrustY, width, height)
+        +anchor()
+        +release()
+        +tension() : double
+        +isTearing() : boolean
+        +tear() : List<Droplet>
+        +slide()
+        +stopSliding()
+        +isWithin(x, y, distance) : boolean
+    }
+    class SoftBody {
+        +pin()
+        +release(vx, vy)
+    }
+}
+
+package enemy {
+    abstract class Enemy
+}
+
+package "enemy.ability" as ability {
+    enum Ability
+    class Dash
+    class Slide
+    class Shoot
+    class Shot
+    interface Target
+}
+
+Levels ..> Level : crée
+Levels ..> HubZone
+Levels ..> Zones
+Levels ..> DashTraining : salle d'entraînement
+DashTraining ..> Zone
+Progress ..> Ability : lumière obtenue = compétence apprise
+World *-- Dash
+World *-- Slide
+World *-- Shoot
+World *-- "*" Shot
+Target <|.. DoorButton
+Level ..> World : layout remplit
+World --> Level
+World --> Progress : met à jour
+World o-- Tunnel : partagé
+World *-- "*" Droplet
+Droplet *-- SoftBody : tête, corps et fil
+DoorButton ..> Droplet : isWithin()
+World *-- "*" Enemy
+World *-- "*" Checkpoint
+World *-- "*" Light
+World *-- "*" Door
+World *-- "*" DoorButton
+World *-- "*" Goal
+World *-- "*" Wall : murs néon
+Tunnel *-- "*" Wall : contour mortel
+Tunnel *-- WallGrid
+Tunnel *-- TileCache : dessin en tuiles
+World *-- WallGrid : barrières
+WallGrid o-- "*" Wall
+Door *-- Wall
+DoorButton --> Door : ouvre
+Zone --> World : remplit
+Zone --> Plan
+World o-- "*" Plan : repère de la grille
+Zones ..> Zone
+HubZone ..> Zone
+Zones --> Plan
+
+note top of Level
+  <b>Strategy</b>
+  Chaque niveau fournit sa façon de
+  remplir un monde (Consumer<World>).
+  World ne connaît aucun niveau précis.
+end note
+
+note right of Zone
+  <b>Builder</b>
+  Construit le monde pas à pas,
+  en coordonnées du plan dessiné ;
+  Plan les convertit vers le monde.
+end note
+
+note bottom of TileCache
+  <b>Cache</b> : le tunnel ne change jamais,
+  donc il est peint une fois par tuile de
+  256 px puis seulement recopié, au lieu
+  d'être redessiné à chaque image.
+end note
+
+note bottom of WallGrid
+  <b>Spatial partition</b>
+  Grille de cases de 256 px : on ne
+  teste que les murs proches.
+end note
+
+note left of Progress
+  Survit au monde, qui est reconstruit
+  à chaque mort ; sauvegardé par SaveData.
+end note
+
+note bottom of Droplet
+  <b>Dash élastique</b> : touche maintenue, l'arrière
+  (le corps) se fige au sol et la tête se tend ;
+  relâchée, la goutte est projetée ; trop tendue
+  (fil de 200 px), elle se déchire en deux moitiés.
+  L'arrière figé appuie aussi sur les boutons.
+end note
+
+note bottom of Levels
+  Le tunnel du monde est construit
+  une seule fois (initialisation
+  paresseuse) et partagé.
+end note
+@enduml

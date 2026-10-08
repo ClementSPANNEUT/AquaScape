@@ -1,0 +1,189 @@
+@startuml screens
+!pragma layout smetana
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+title Les écrans et la sauvegarde
+
+class JPanel <<Swing>>
+
+package screen {
+    class Game {
+        +showMenu()
+        +showSettings()
+        +showMap()
+        +showControls()
+        +play(checkpoint)
+        +playTraining()
+        +savedProgress(checkpoint) : Progress
+        +saveProgress(level, progress)
+        +isValidated(checkpoint) : boolean
+        +setWindowSize(size)
+        +setVolume(percent)
+        +setInvincible(invincible)
+    }
+
+    class MenuPanel {
+        +showMain()
+        +showSettings()
+        -showWindowSizes()
+        -sideways(step)
+    }
+
+    class Slider {
+        +{static} STEP : int
+        +{static} draw(g, box, label, level)
+        +{static} levelAt(box, x) : int
+        +{static} moved(level, steps) : int
+        +level() : int
+        +move(steps)
+        -pick(x)
+    }
+
+    class Ui {
+        +{static} button(text, action) : JButton
+        +{static} slider(label, level, onChange) : Slider
+        +{static} highlight(button, highlighted)
+    }
+
+    class MapPanel {
+        +open()
+    }
+
+    class ControlsPanel {
+        +open()
+    }
+
+    class GamePanel {
+        -page : Page
+        -timer : Timer
+        +start(level, progress)
+        +stop()
+        -update()
+        ~lightTaken(light)
+    }
+
+    enum Page {
+        NONE
+        PAUSE
+        SETTINGS
+        WINDOW_SIZES
+        CONTROLS
+        ABILITY
+        WIN
+    }
+
+    class ControlsEditor {
+        -onChange : Runnable
+        -onClose : Runnable
+        +keyPressed(key)
+        +gamepadPressed(button)
+        +mousePressed(x, y)
+        +paint(g, area)
+    }
+
+    class Popup {
+        +{static} draw(g, box, title) : Rectangle
+        +{static} dim(g, width, height)
+        +{static} toast(...)
+    }
+
+    class Camera {
+        +snap(world, width, height)
+        +follow(dt, world, width, height)
+    }
+}
+
+package save {
+    class SaveData {
+        +{static} load() : SaveData
+        +save()
+        +remember(progress)
+        +windowSize() : WindowSize
+        +volume() : int
+        +isInvincible() : boolean
+    }
+    class Controls {
+        +set(action, slot, key) : Action
+        +setButton(action, button) : Action
+        +isPressed(action, keys) : boolean
+        +matches(action, button) : boolean
+    }
+    enum Action
+    enum WindowSize
+}
+
+package world {
+    class World
+    class Progress
+}
+
+JPanel <|-- MenuPanel
+JPanel <|-- MapPanel
+JPanel <|-- ControlsPanel
+JPanel <|-- GamePanel
+
+Game *-- MenuPanel
+Game *-- MapPanel
+Game *-- ControlsPanel
+Game *-- GamePanel
+Game *-- SaveData
+SaveData *-- Controls
+SaveData --> WindowSize
+Controls +-- Action
+GamePanel +-- Page
+GamePanel *-- Camera
+GamePanel *-- ControlsEditor
+ControlsPanel *-- ControlsEditor
+ControlsEditor --> Controls : modifie
+GamePanel ..> Popup
+ControlsPanel ..> Popup
+GamePanel --> World : boucle de jeu
+GamePanel --> Progress
+MapPanel ..> World : lit les checkpoints
+MenuPanel --> Game
+MapPanel --> Game
+GamePanel --> Game
+ControlsPanel --> Game : retour aux réglages
+MenuPanel *-- Slider : volume
+GamePanel ..> Slider : dessine le volume de la pause
+MenuPanel ..> Ui
+Ui ..> Slider : crée
+
+note right of Game
+  <b>Mediator</b>
+  Les écrans ne se connaissent pas :
+  ils passent par Game pour changer
+  d'écran et accéder à la sauvegarde.
+  Game passe aussi chaque bouton de
+  la manette à l'écran affiché.
+end note
+
+note top of MenuPanel
+  Page <b>Réglages</b> : Contrôles (ouvre le
+  tableau des touches), taille de l'écran,
+  volume et mode invincible. Chaque
+  réglage est sauvegardé dès qu'il change.
+  La pause du jeu a la même page (SETTINGS),
+  où le mode invincible s'applique aussitôt.
+end note
+
+note bottom of Slider
+  Dix segments de 10 % : clic ou glisser
+  à la souris, ← → au clavier et à la
+  manette. Prévient par un callback.
+end note
+
+note left of ControlsEditor
+  <b>Observer (callbacks)</b>
+  Prévient son écran par onChange
+  (sauvegarder) et onClose (fermer),
+  sans savoir qui l'utilise : le même
+  éditeur sert au menu et en jeu.
+end note
+
+note bottom of Page
+  À faire : passer ces pages au
+  pattern <b>State</b> (une classe par
+  page) pour alléger GamePanel.
+end note
+@enduml
